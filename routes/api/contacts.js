@@ -26,7 +26,11 @@ router.delete('/:contactId', async (req, res, next) => {
   try {
     const contactId = req.params.contactId
     const updatedContacts = await contactsModel.removeContact(contactId)
-    res.json({ message: 'Contact deleted successfully', contacts: updatedContacts })
+    if (updatedContacts) {
+      res.status(200).json({ message: 'Contact deleted' });
+    } else {
+      res.status(404).json({ message: 'Not found' });
+    }
   } catch (error) {
     next(error)
   }

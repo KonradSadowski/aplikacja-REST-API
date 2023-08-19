@@ -40,11 +40,16 @@ const getContactById = async (contactId) => {
 
 const removeContact = async (contactId) => {
   try {
-    const contacts = await listContacts()
-    const updatedContacts = contacts.filter(contact => contact.id !== contactId)
-    await fs.writeFile(contactsPath, JSON.stringify(updatedContacts, null, 2))
-    return updatedContacts
+    const contacts = await listContacts();
+    const updatedContacts = contacts.filter(contact => contact.id !== contactId);
+    const contactDeleted = contacts.length !== updatedContacts.length;
 
+    if (contactDeleted) {
+      await fs.writeFile(contactsPath, JSON.stringify(updatedContacts, null, 2));
+      return true;
+    } else {
+      return false;
+    }
   } catch (error) {
     console.error("Contact removing error", error)
     throw error
@@ -55,7 +60,7 @@ const removeContact = async (contactId) => {
 
 const addContact = async (body) => {
   try {
-    const contacts = await listContacts();
+
     const { name, email, phone } = body;
     const { error } = contactSchema.validate({ name, email, phone });
 
@@ -63,7 +68,7 @@ const addContact = async (body) => {
       const errorMessage = "Validation error: " + error.details.map(detail => detail.message).join(', ');
       throw { status: 400, message: errorMessage };
     }
-
+    const contacts = await listContacts();
     const newContact = {
       id: nanoid.nanoid(),
       name,
@@ -86,7 +91,6 @@ const addContact = async (body) => {
 
 const updateContact = async (contactId, body) => {
   try {
-    const contacts = await listContacts()
     const contactToUpdate = contacts.find((contact) => contact.id === contactId)
 
     if (!contactToUpdate) {
@@ -100,6 +104,7 @@ const updateContact = async (contactId, body) => {
       throw { status: 400, message: errorMessage };
     }
 
+    const contacts = await listContacts()
     const updatedContact = {
       ...contactToUpdate,
       ...body,
