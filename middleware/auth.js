@@ -10,7 +10,7 @@ const options = {
     passReqToCallback: true,
 };
 
-const middleware = (req, res, next) => {
+const authMiddleware = (req, res, next) => {
     passport.authenticate('jwt', { session: false }, (err, user) => {
         if (err || !user) {
             const unauthorizedError = {
@@ -48,4 +48,4 @@ passport.use(
     })
 );
 
-module.exports = middleware;
+module.exports = authMiddleware;
