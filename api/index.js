@@ -2,28 +2,28 @@ const express = require('express')
 const router = express.Router()
 const controller = require('../controller')
 const passport = require('../middleware/auth')
-const middleware = require('../middleware/auth')
+const authMiddleware = require('../middleware/auth')
 
 // routes for contacts
-router.get('/contacts', middleware, controller.get)
+router.get('/contacts', authMiddleware, controller.get)
 
-router.get('/contacts/:id', middleware, controller.getById)
+router.get('/contacts/:id', authMiddleware, controller.getById)
 
-router.post('/contacts', middleware, controller.create)
+router.post('/contacts', authMiddleware, controller.create)
 
-router.put('/contacts/:id', middleware, controller.update)
+router.put('/contacts/:id', authMiddleware, controller.update)
 
-router.patch('/contacts/:id/favorite', middleware, controller.updateFavorite)
+router.patch('/contacts/:id/favorite', authMiddleware, controller.updateFavorite)
 
-router.delete('/contacts/:id', middleware, controller.remove)
+router.delete('/contacts/:id', authMiddleware, controller.remove)
 
 // routes for users
 router.post('/users/signup', controller.signUp)
 
 router.post('/users/login', controller.logIn)
 
-router.get('/users/logout', middleware, controller.logOut)
+router.get('/users/logout', authMiddleware, controller.logOut)
 
-router.get('/users/current', middleware, controller.currentUser)
+router.get('/users/current', authMiddleware, controller.currentUser)
 
 module.exports = router
