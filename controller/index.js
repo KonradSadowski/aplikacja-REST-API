@@ -1,4 +1,10 @@
 const service = require('../service')
+const Joi = require('joi')
+const User = require('../service/schemas/user')
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+require('dotenv').config()
+
 
 const get = async (req, res, next) => {
     try {
@@ -142,6 +148,132 @@ const remove = async (req, res, next) => {
     }
 }
 
+
+const userSchema = Joi.object({
+    email: Joi.string()
+        .email({ minDomainSegments: 2 })
+        .required(),
+    password: Joi.string()
+        .pattern(new RegExp('^[a-zA-Z0-9]{3,30}$'))
+        .required()
+})
+
+
+
+const signUp = async (req, res, next) => {
+    try {
+        const { email, password } = req.body
+        const { error } = userSchema.validate({ email, password });
+
+        if (error) {
+            return res.status(400).json({
+                error: error.details[0].message
+            })
+        }
+
+        const existingUser = await User.findOne({ email: email });
+
+        if (existingUser) {
+            return res.status(409).json({
+                message: "Email in use"
+            })
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 8)
+
+        const result = await service.createUser({ email: email, password: hashedPassword })
+
+
+
+        return res.status(201).json({
+            user: {
+                email: result.email,
+                subscription: result.subscription,
+            }
+
+        })
+    } catch (e) {
+        console.error(e)
+        next(e)
+    }
+
+}
+
+
+const logIn = async (req, res, next) => {
+    try {
+        const { email, password } = req.body
+        const { error } = userSchema.validate({ email, password });
+
+        if (error) {
+            return res.status(400).json({
+                error: error.details[0].message
+            })
+        }
+
+        const registeredUser = await User.findOne({ email: email });
+
+        if (!registeredUser) {
+            return res.status(401).json({ message: "Email or password is wrong" });
+        }
+
+        const properPassword = await bcrypt.compare(password, registeredUser.password);
+
+        if (!properPassword) {
+            return res.status(401).json({ message: "Email or password is wrong" });
+        }
+
+        const payload = {
+            id: registeredUser.id,
+            email: email
+        }
+
+        const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: "1h" })
+
+        registeredUser.token = token
+        await registeredUser.save()
+
+        return res.status(200).json({
+            token: token,
+            user: {
+                email: registeredUser.email,
+                subscription: registeredUser.subscription,
+            }
+
+        })
+
+    } catch (e) {
+        console.error(e)
+        next(e)
+    }
+}
+
+const logOut = async (req, res, next) => {
+    try {
+        const user = req.user;
+
+        user.token = null;
+        await user.save();
+
+        return res.status(204).json();
+    } catch (error) {
+        return next(error);
+    }
+};
+
+
+const currentUser = (req, res) => {
+    try {
+        return res.status(200).json({
+            email: req.user.email,
+            subscription: req.user.subscription,
+        });
+    } catch (error) {
+        return next(error);
+    }
+
+};
+
 module.exports = {
     get,
     getById,
@@ -149,4 +281,8 @@ module.exports = {
     update,
     updateFavorite,
     remove,
+    signUp,
+    logIn,
+    logOut,
+    currentUser,
 }
