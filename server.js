@@ -1,5 +1,6 @@
 const express = require('express')
 const cors = require('cors')
+const multer = require('multer');
 const mongoose = require('mongoose')
 
 require('dotenv').config()
@@ -11,6 +12,8 @@ app.use(express.json())
 app.use(cors())
 
 const routerApi = require('./api')
+app.use(express.static('public'));
+app.use('/avatars', express.static('public/avatars'));
 app.use('/api', routerApi)
 
 app.use((_, res, __) => {
@@ -32,7 +35,10 @@ app.use((err, _, res, __) => {
   })
 })
 
+
+
 const PORT = process.env.PORT || 3000
+
 
 mongoose
   .connect(process.env.MONGODB_URI, {
@@ -50,4 +56,5 @@ mongoose
     console.error(`Database connection error: ${err.message}`);
     process.exit(1);
   });
+
 

@@ -1,8 +1,11 @@
 const express = require('express')
 const router = express.Router()
 const controller = require('../controller')
+const multer = require('../middleware/multer');
 const passport = require('../middleware/auth')
 const authMiddleware = require('../middleware/auth')
+const upload = require('../middleware/multer');
+
 
 // routes for contacts
 router.get('/contacts', authMiddleware, controller.get)
@@ -25,5 +28,10 @@ router.post('/users/login', controller.logIn)
 router.get('/users/logout', authMiddleware, controller.logOut)
 
 router.get('/users/current', authMiddleware, controller.currentUser)
+
+router.patch('/users/avatars', authMiddleware, upload.single('avatar'), controller.updateAvatar);
+
+
+
 
 module.exports = router
