@@ -31,6 +31,10 @@ router.get('/users/current', authMiddleware, controller.currentUser)
 
 router.patch('/users/avatars', authMiddleware, upload.single('avatar'), controller.updateAvatar);
 
+router.get('/users/verify/:verificationToken', controller.verifyEmail);
+
+router.post('/users/verify', controller.resendVerificationEmail);
+
 
 
 

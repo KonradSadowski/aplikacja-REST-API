@@ -6,6 +6,8 @@ const jwt = require('jsonwebtoken');
 const gravatar = require('gravatar');
 const jimp = require('jimp');
 const path = require('path');
+const uuid = require('uuid');
+const { sendVerificationEmail } = require('../service/email')
 require('dotenv').config()
 
 
@@ -158,51 +160,54 @@ const userSchema = Joi.object({
         .required(),
     password: Joi.string()
         .pattern(new RegExp('^[a-zA-Z0-9]{3,30}$'))
-        .required()
+        .required(),
+    verificationToken: Joi.string(),
 })
-
-
 
 const signUp = async (req, res, next) => {
     try {
-        const { email, password } = req.body
+        const { email, password } = req.body;
         const { error } = userSchema.validate({ email, password });
-        const avatarURL = gravatar.url(email, { s: '250', r: 'pg', d: 'identicon' });
 
         if (error) {
-            return res.status(400).json({
-                error: error.details[0].message
-            })
+            return res.status(400).json({ error: error.details[0].message });
         }
 
         const existingUser = await User.findOne({ email: email });
 
         if (existingUser) {
-            return res.status(409).json({
-                message: "Email in use"
-            })
+            return res.status(409).json({ message: "Email in use" });
         }
 
-        const hashedPassword = await bcrypt.hash(password, 8)
+        const hashedPassword = await bcrypt.hash(password, 8);
 
-        const result = await service.createUser({ email: email, password: hashedPassword })
+        const newUser = new User({ email, password: hashedPassword });
 
+        const verificationToken = uuid.v4();
 
+        newUser.verificationToken = verificationToken;
+        await newUser.save();
+
+        await sendVerificationEmail(newUser.email, verificationToken);
+
+        const avatarURL = gravatar.url(email, { s: '250', r: 'pg', d: 'identicon' });
 
         return res.status(201).json({
             user: {
-                email: result.email,
-                subscription: result.subscription,
+                email: newUser.email,
+                subscription: newUser.subscription,
                 avatarURL: avatarURL,
-            }
-
-        })
-    } catch (e) {
-        console.error(e)
-        next(e)
+            },
+        });
+    } catch (error) {
+        console.error(error);
+        next(error);
     }
+};
 
-}
+
+
+
 
 
 const logIn = async (req, res, next) => {
@@ -299,6 +304,63 @@ const updateAvatar = async (req, res, next) => {
         res.status(500).json({ message: 'Internal server error' });
     }
 };
+
+
+const verifyEmail = async (req, res) => {
+    const { verificationToken } = req.params;
+
+    try {
+        const user = await User.findOne({ verificationToken });
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        user.verify = true;
+        user.verificationToken = null;
+        await user.save();
+
+        return res.status(200).json({ message: 'Verification successful' });
+    } catch (error) {
+        console.error('Błąd weryfikacji emaila:', error);
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
+
+const resendVerificationEmail = async (req, res) => {
+    const { email } = req.body;
+
+    if (!email) {
+        return res.status(400).json({ message: 'Missing required field email' });
+    }
+
+    try {
+        const user = await User.findOne({ email });
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        if (user.verify) {
+            return res
+                .status(400)
+                .json({ message: 'Verification has already been passed' });
+        }
+
+        const verificationToken = uuid.v4();
+        user.verificationToken = verificationToken;
+        await user.save();
+
+        await sendVerificationEmail(user.email, verificationToken);
+
+        return res.status(200).json({ message: 'Verification email sent' });
+    } catch (error) {
+        console.error('Błąd podczas ponownego wysyłania emaila weryfikacyjnego:', error);
+        return res.status(500).json({ message: 'Internal server error' });
+    }
+};
+
 module.exports = {
     get,
     getById,
@@ -311,4 +373,6 @@ module.exports = {
     logOut,
     currentUser,
     updateAvatar,
+    verifyEmail,
+    resendVerificationEmail
 }
